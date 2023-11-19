@@ -18,6 +18,8 @@ public class RecordRateEntity {
 	@Column(name="id")
 	Integer id;
 	
+//	@OneToOne(targetEntity = CurrencyEntity.class)
+//	@JoinColumn(name = "currency_name")
 	@Column(name="currency_name")
 	String currencyName;
 	
@@ -26,7 +28,7 @@ public class RecordRateEntity {
 	
 	@Column(name="update_time")
 	Date updateTime;
-
+	
 	public Integer getId() {
 		return id;
 	}
