@@ -39,19 +39,19 @@ public class DataController {
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
 
-	@DeleteMapping(value = "/deleteRecord", produces = "application/json")
-	public ResponseEntity<?> deleteRecord(@RequestParam String currencyName, @RequestParam String updateTimeString)
-			throws ParseException {
-		Message message = dataService.deleteRecordRate(currencyName, updateTimeString);
+	@GetMapping(value = "/insert", produces = "application/json")
+	public ResponseEntity<?> insertData() throws ParseException, JsonMappingException, JsonProcessingException {
+		Message message = dataService.insert();
 		if (message.isSuccess() == true) {
 			return new ResponseEntity<>(message, HttpStatus.OK);
 		}
 		return new ResponseEntity<>(message, HttpStatus.INTERNAL_SERVER_ERROR);
 	}
-
-	@GetMapping(value = "/insert", produces = "application/json")
-	public ResponseEntity<?> insertData() throws ParseException, JsonMappingException, JsonProcessingException {
-		Message message = dataService.insert();
+	
+	@DeleteMapping(value = "/deleteRecord", produces = "application/json")
+	public ResponseEntity<?> deleteRecord(@RequestParam(required = false) String currencyName, @RequestParam(required = false) String updateTimeString)
+			throws ParseException {
+		Message message = dataService.deleteRecordRate(currencyName, updateTimeString);
 		if (message.isSuccess() == true) {
 			return new ResponseEntity<>(message, HttpStatus.OK);
 		}

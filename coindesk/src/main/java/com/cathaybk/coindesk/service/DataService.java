@@ -61,7 +61,7 @@ public class DataService {
 		BitcoinData rawData = transJsonToModel();
 		// 更新時間
 		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
-		Date updateTime = new Date();
+		Date updateTime = null;
 		if (rawData != null) {
 			Map<String, String> time = rawData.getTime();
 			if (time != null) {
@@ -80,8 +80,8 @@ public class DataService {
 					String key = entry.getKey();
 					CurrencyData value = entry.getValue();
 					// 若有資料則不新增
-					CurrencyEntity existCurrency = currencyDao.findByCurrencyName(key);
-					if (existCurrency == null) {
+					List<CurrencyEntity> existCurrency = currencyDao.findByCurrencyName(key);
+					if (existCurrency.isEmpty()) {
 						// currency
 						CurrencyEntity currency = new CurrencyEntity();
 						// 幣別
@@ -103,8 +103,8 @@ public class DataService {
 						message.setMessage("對應中文資料表已有資料");
 					}
 					// 幣別與時間為唯一值
-					RecordRateEntity existRecord = recordRateDao.findByCurrencyNameAndUpdateTime(key, updateTime);
-					if (existRecord == null) {
+					List<RecordRateEntity> existRecord = recordRateDao.findByCurrencyNameAndUpdateTime(key, updateTime);
+					if (existRecord.isEmpty()) {
 						// record
 						RecordRateEntity record = new RecordRateEntity();
 						// 幣別
@@ -128,7 +128,7 @@ public class DataService {
 				return message;
 			} else {
 				message.setSuccess(false);
-				message.setMessage("執行失敗");
+				message.setMessage("已有資料請稍後在試");
 				return message;
 			}
 		}
@@ -152,10 +152,10 @@ public class DataService {
 		if(updateRequest != null) {
 			SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 			Date updateTime = dateFormat.parse(updateRequest.getUpdateTimeString());
-			RecordRateEntity existRecord = recordRateDao.findByCurrencyNameAndUpdateTime(updateRequest.getCurrencyName(), updateTime);
-			if(existRecord != null) {
-				existRecord.setRate(updateRequest.getRate());
-				recordRateDao.save(existRecord);
+			List<RecordRateEntity> existRecord = recordRateDao.findByCurrencyNameAndUpdateTime(updateRequest.getCurrencyName(), updateTime);
+			if(!existRecord.isEmpty()) {
+				existRecord.get(0).setRate(updateRequest.getRate());
+				recordRateDao.save(existRecord.get(0));
 				message.setSuccess(true);
 				message.setMessage("修改匯率資料表成功");
 				return message;
@@ -166,8 +166,8 @@ public class DataService {
 				insertRecordEntity.setUpdateTime(updateTime);
 				recordRateDao.save(insertRecordEntity);
 				
-				CurrencyEntity existCurrency = currencyDao.findByCurrencyName(updateRequest.getCurrencyName());
-				if(existCurrency == null) {
+				List<CurrencyEntity> existCurrency = currencyDao.findByCurrencyName(updateRequest.getCurrencyName());
+				if(existCurrency.isEmpty()) {
 					CurrencyEntity insetCurrencyEntity = new CurrencyEntity();
 					insetCurrencyEntity.setCurrencyName(updateRequest.getCurrencyName());
 					insetCurrencyEntity.setCurrecnyChiName(updateRequest.getCurrecnyChiName());
@@ -211,6 +211,9 @@ public class DataService {
 				recordRateDao.deleteByUpdateTime(updateTime);
 				message.setSuccess(true);
 				message.setMessage("刪除成功");		
+			}else {
+				message.setSuccess(false);
+				message.setMessage("請輸入參數");
 			}
 		} catch (Exception e) {
 			message.setSuccess(false);

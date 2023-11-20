@@ -13,7 +13,7 @@ import com.cathaybk.coindesk.entity.RecordRateEntity;
 @Repository
 public interface RecordRateDao extends CrudRepository<RecordRateEntity, Integer>{
 
-	RecordRateEntity findByCurrencyNameAndUpdateTime(String currencyName, Date updateTime);
+	List<RecordRateEntity> findByCurrencyNameAndUpdateTime(String currencyName, Date updateTime);
 	
 	@Transactional
 	void deleteByCurrencyNameAndUpdateTime(String currencyName, Date updateTime);
