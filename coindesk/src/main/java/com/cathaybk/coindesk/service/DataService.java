@@ -11,6 +11,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
@@ -18,6 +19,7 @@ import com.cathaybk.coindesk.dao.CurrencyDao;
 import com.cathaybk.coindesk.dao.RecordRateDao;
 import com.cathaybk.coindesk.entity.CurrencyEntity;
 import com.cathaybk.coindesk.entity.RecordRateEntity;
+import com.cathaybk.coindesk.form.UpdateRequest;
 import com.cathaybk.coindesk.model.BitcoinData;
 import com.cathaybk.coindesk.model.CurrencyData;
 import com.cathaybk.coindesk.model.Message;
@@ -53,7 +55,7 @@ public class DataService {
 	}
 
 	// 幣別 DB 維護功能。
-	@Transactional
+	@Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
 	public Message insert() throws ParseException, JsonMappingException, JsonProcessingException {
 		Message message = new Message();
 		BitcoinData rawData = transJsonToModel();
@@ -133,26 +135,63 @@ public class DataService {
 		return null;
 	}
 
-	@Transactional
-	public Message update() throws JsonMappingException, JsonProcessingException, ParseException {
-		Message message = insert();
-		return message;
-	}
-
-	public Message deleteCurrency(String currencyName) {
+	/**
+	 * 更新資料、手動新增資料
+	 * @param UpdateRequest
+	 * @param currencyName 英文幣別
+	 * @param rate 匯率，格式(小數點後四):31228.1943	
+	 * @param updateTimeString 時間格式: "2023-11-20 11:07:00"
+	 * @param currecnyChiName 中文幣別
+	 * @param description 幣別說明
+	 * @return Message
+	 * @throws ParseException
+	 */
+	@Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+	public Message update(UpdateRequest updateRequest) throws ParseException {
 		Message message = new Message();
-		try {
-			currencyDao.deleteByCurrencyName(currencyName);
-			message.setSuccess(true);
-			message.setMessage("刪除成功");
-
-		} catch (Exception e) {
-			message.setSuccess(false);
-			message.setMessage("刪除失敗");
+		if(updateRequest != null) {
+			SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+			Date updateTime = dateFormat.parse(updateRequest.getUpdateTimeString());
+			RecordRateEntity existRecord = recordRateDao.findByCurrencyNameAndUpdateTime(updateRequest.getCurrencyName(), updateTime);
+			if(existRecord != null) {
+				existRecord.setRate(updateRequest.getRate());
+				recordRateDao.save(existRecord);
+				message.setSuccess(true);
+				message.setMessage("修改匯率資料表成功");
+				return message;
+			}else {
+				RecordRateEntity insertRecordEntity = new RecordRateEntity();
+				insertRecordEntity.setRate(updateRequest.getRate());
+				insertRecordEntity.setCurrencyName(updateRequest.getCurrencyName());
+				insertRecordEntity.setUpdateTime(updateTime);
+				recordRateDao.save(insertRecordEntity);
+				
+				CurrencyEntity existCurrency = currencyDao.findByCurrencyName(updateRequest.getCurrencyName());
+				if(existCurrency == null) {
+					CurrencyEntity insetCurrencyEntity = new CurrencyEntity();
+					insetCurrencyEntity.setCurrencyName(updateRequest.getCurrencyName());
+					insetCurrencyEntity.setCurrecnyChiName(updateRequest.getCurrecnyChiName());
+					insetCurrencyEntity.setDescription(updateRequest.getDescription());
+					currencyDao.save(insetCurrencyEntity);
+				}
+				
+				message.setSuccess(true);
+				message.setMessage("手動新增成功");
+				return message;
+			}
 		}
-		return message;
+		return null;
+		
 	}
 
+	/**
+	 * 刪除匯率紀錄
+	 * @param currencyName 英文幣別
+	 * @param updateTimeString 時間格式: "2023-11-20 11:07:00"
+	 * @return Message
+	 * @throws ParseException
+	 */
+	@Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
 	public Message deleteRecordRate(String currencyName, String updateTimeString) throws ParseException {
 		Message message = new Message();
 		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -195,6 +234,7 @@ public class DataService {
 				String updateTimeString = object[3].toString();
 				 if (updateTimeString.endsWith(".0")) {
 	                updateTimeString = updateTimeString.substring(0, updateTimeString.length() - 2);
+	                model.setUpdateTime(updateTimeString);
 	            }else {
 	            	model.setUpdateTime(updateTimeString);
 	            }
